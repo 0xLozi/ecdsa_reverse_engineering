@@ -661,26 +661,52 @@ ecdsa_set_curve(ec_p,ec_a,ec_b1,ec_N1,Gx1,Gy1);
 If you can see we have different set_curves...
 
 
+**Ok so this is where I got stuck:**
+```c
+int kirk_CMD12(u8 * outbuff, int outsize) {
+  u8 k[0x15];
+  KIRK_CMD12_BUFFER * keypair = (KIRK_CMD12_BUFFER *) outbuff;
 
+  if(outsize != 0x3C) return KIRK_INVALID_SIZE;
+  ecdsa_set_curve(ec_p,ec_a,ec_b2,ec_N2,Gx2,Gy2);
+  k[0] = 0;
+  kirk_CMD14(k+1,0x14);
+  ec_priv_to_pub(k, (u8*)keypair->public_key.x);
+  memcpy(keypair->private_key,k+1,0x14);
+  
+  return KIRK_OPERATION_SUCCESS;
+}
+```
 
+**So let's replicate it exactly** 
+- Initialize `k` with size of `0x15`
+- Do **Type Punning** for the `outbuff` pointer
+- Set the respective curve with `ecdsa_set_curve()`
+- Leave `kirk_cmd14()` behind, we replace it with `memset` (as a mock test).
+- Print the result, copy it, make a unit test in Rust
 
+**Result:**
+```bash
+Private key (k): 00FA4B7D3C47E8ED7E7EFA55ED26D2815B4D511B2E
+```
 
+**Now we have to replicate the same thing in Rust.**
+I know that they did `0x15` rather than `0x14` because when you perform `montgomery aritmethic` and you are dealing with **big numbers**, it could lead to results that can go past the boundaries from a `0x14` pointer. Therefore they add another byte just in case while performing the arithmetic don't suffer a buffer overflow.
 
+##### Important
+I spotted an interesting comment while moving a static variable from c to Rust:
+```c
+static u8 ec_b2[20] = {0xA6, 0x8B, 0xED, 0xC3, 0x34, 0x18, 0x02, 0x9C, 0x1D, 0x3C, 0xE3, 0x3B, 0x9A, 0x32, 0x1F, 0xCC, 0xBB, 0x9E, 0x0F, 0x0B};// mon
+```
+> Look at the comment: `// mon`.
 
+This could mean that the value from `ec_b2` is already set into the Montgomery Form. Since in Rust I'm performing another arithmetic operation rather than using the Montgomery form, I'm gonna convert these values back into `BigNumber` using an existing routine inside the original tool called `bn_from_mon()`.
 
+**So the `u8` arrays that suffer the same issue are the listed below:**
+- `ec_a` (encountered the same comment)
+- `ec_b2` (explained above)
 
-
-
-
-
-
-
-
-
-
-
-
-
+> I think those are the only arrays that enters in the same bag
 
 
 

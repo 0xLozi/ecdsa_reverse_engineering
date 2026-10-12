@@ -52,106 +52,22 @@ void print_slice(u8* k, int size) {
     printf("\n");
 }
 
-void test_square_vs_mul() {
-    u8 x[20] = {
-        0x22, 0x59, 0xAC, 0xEE, 0x15,
-        0x48, 0x9C, 0xB0, 0x96, 0xA8,
-        0x82, 0xF0, 0xAE, 0x1C, 0xF9,
-        0xFD, 0x8E, 0xE5, 0xF8, 0xFA
-    };
-
-    u8 square_result[20] = {0};
-    u8 mul_result[20] = {0};
-
-    // Then we convert x to Montgomery form
-    bn_to_mon(x, ec_p, 20);
-    
-    // We compute x * x using both paths
-    elt_square(square_result, x);
-    elt_mul(mul_result, x, x);
-
-    // Once we perform the mul, we convert both results back to normal
-    bn_from_mon(square_result, ec_p, 20);
-    bn_from_mon(mul_result, ec_p, 20);
-    
-    printf("Square: ");
-    for (int i = 0; i < 20; i++)
-        printf("%02X", square_result[i]);
-
-    printf("\nMultiply: ");
-    for (int i = 0; i < 20; i++)
-        printf("%02X", mul_result[i]);
-
-
-    printf("\n");
-}
-
-
-void test_double_point() {
-    struct point p = {
-        .x = {
-            0x22, 0x59, 0xAC, 0xEE, 0x15,
-            0x48, 0x9C, 0xB0, 0x96, 0xA8,
-            0x82, 0xF0, 0xAE, 0x1C, 0xF9,
-            0xFD, 0x8E, 0xE5, 0xF8, 0xFA
-        },
-        .y = {
-            0x60, 0x43, 0x58, 0x45, 0x6D,
-            0x0A, 0x1C, 0xB2, 0x90, 0x8D,
-            0xE9, 0x0F, 0x27, 0xD7, 0x5C,
-            0x82, 0xBE, 0xC1, 0x08, 0xC0
-        }
-    };
-    struct point d = {0};
-
-    printf("x: ");
-    for (int i = 0; i < 20; i++) {
-        printf("0x%02X,", d.x[i]);
-    }
-
-    printf("\ny: ");
-    for (int i = 0; i < 20; i++) {
-        printf("0x%02X,", d.y[i]);
-    }
-}
-
-void test_square() {
-    u8 x[20] = {
-        0x22, 0x59, 0xAC, 0xEE, 0x15,
-        0x48, 0x9C, 0xB0, 0x96, 0xA8,
-        0x82, 0xF0, 0xAE, 0x1C, 0xF9,
-        0xFD, 0x8E, 0xE5, 0xF8, 0xFA
-    };
-    u8 original[20];
-    memcpy(original, x, 20);
-
-    bn_to_mon(x, ec_p, 20);
-    bn_from_mon(x, ec_p, 20);
-
-    printf("original: ");
-    for (int i = 0; i < 20; i++) {
-        printf("%02X", original[i]);
-    }
-    printf("\nroundtrip: ");
-    for (int i = 0; i < 20; i++) {
-        printf("%02X", x[i]);
-    }
-
-    printf("\n");
-}
-
 
 int main() {
-    ecdsa_set_curve(ec_p,ec_a,ec_b2,ec_N2,Gx2,Gy2);
-
     u8 k[0x15];
     k[0] = 0x00;
 
+    ecdsa_set_curve(ec_p,ec_a,ec_b2,ec_N2,Gx2,Gy2);
+
+    // we fill here every byte from k with zeroes excepct for the first one, just to replicate the same behaviour form the original tool
     memset(k + 1, 0x55, 0x14);
+
+    // We define an array that will store the result of conversion. From what I see it needs 40 bytes of size.
     u8 public_key[40] = {0};
 
     ec_priv_to_pub(k, public_key);
 
+    // We use the format of hexadecimal with 0 for padding and 2 of size for each byte representation
     printf("Private key (k): ");
     for (int i = 0; i < 0x15; i++) {
         printf("%02X", k[i]);

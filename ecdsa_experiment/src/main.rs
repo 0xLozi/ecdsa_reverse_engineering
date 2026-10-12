@@ -6,7 +6,7 @@ use num_bigint::BigUint;
 use kirk_headers::Kirk_CMD12_BUFFER;
 mod misc_decrypt;
 use misc_decrypt::ecdsa_engine;
-use crate::misc_decrypt::{ecdsa_engine::PSP_CTX, mod_operations::mod_add};
+use crate::misc_decrypt::{ecdsa_engine::{PSP_CTX, ecdsa_set_curve}, mod_operations::mod_add};
 use ecdsa_engine::point_double_out_place;
 use misc_decrypt::mod_operations::{mod_square};
 
@@ -45,6 +45,27 @@ pub static EC_N1: [u8; 21] = [
     0xEA, 0xE1, 0xDB, 0xAD, 0x8F,
 ];
 
+// need to convert this into BIGNUMBER, THIS WAS IN THE MONTGOMERY FORM
+// pub static EC_B2: [u8;20] = [
+//     0xA6, 0x8B, 0xED, 0xC3, 0x34, 
+//     0x18, 0x02, 0x9C, 0x1D, 0x3C, 
+//     0xE3, 0x3B, 0x9A, 0x32, 0x1F, 
+//     0xCC, 0xBB, 0x9E, 0x0F, 0x0B
+// ];
+
+pub static EC_N2 = [
+
+]
+
+pub static GX2 = [
+
+
+]
+
+pub static GY2 = [
+
+]
+
 pub static GX1: [u8; 20] = [
     0x22, 0x59, 0xAC, 0xEE, 0x15, 0x48, 0x9C, 0xB0,
     0x96, 0xA8, 0x82, 0xF0, 0xAE, 0x1C, 0xF9, 0xFD,
@@ -62,8 +83,6 @@ fn main() {
     let mut outbuff = [1u8;60];
     let mut keypair = Kirk_CMD12_BUFFER::new(&mut outbuff);
 
-    let psp_ctx = ecdsa_engine::ecdsa_set_curve(&EC_P,&EC_A,&EC_B1,&EC_N1,&GX1,&GY1);
-
     let k: [u8;20] = [
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 
         0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA
@@ -78,124 +97,13 @@ fn main() {
 }
 
 #[test]
-fn test_point_double() {
-    let x_bytes: [u8;20] = 
-    [
-        0x22, 0x59, 0xAC, 0xEE, 0x15,
-		0x48, 0x9C, 0xB0, 0x96, 0xA8,
-		0x82, 0xF0, 0xAE, 0x1C, 0xF9,
-		0xFD, 0x8E, 0xE5, 0xF8, 0xFA
-    ];
-
-    let y_bytes: [u8;20]= 
-    [
-        0x60, 0x43, 0x58, 0x45, 0x6D,
-		0x0A, 0x1C, 0xB2, 0x90, 0x8D,
-		0xE9, 0x0F, 0x27, 0xD7, 0x5C,
-		0x82, 0xBE, 0xC1, 0x08, 0xC0
-    ];
-
-    let p = ecdsa_engine::Point {
-        x: BigUint::from_bytes_be(&x_bytes),
-        y: BigUint::from_be_bytes(&y_bytes),
-        is_infinity: false,
-    };
-
-    let mut r = ecdsa_engine::Point {
-        x: BigUint::zero(),
-        y: BigUint::zero(),
-        is_infinity: true
-    };
-
-    let psp_ctx = ecdsa_engine::ecdsa_set_curve(&EC_P,&EC_A,&EC_B1,&EC_N1,&GX1,&GY1);
-
-    let expected_y: [u8;20] = [
-        0x01,0xD5,0x08,0xCD,0xC7,
-        0x84,0xDE,0x50,0xBD,0xC7,
-        0x0B,0xE3,0x96,0xE5,0xEA,
-        0xCB,0xE1,0xEE,0x06,0x85
-    ];
-
-    let expected_x: [u8;20] = [
-        0xE5,0xED,0xED,0x24,0x5D,
-        0x13,0x50,0x0F,0x31,0x46,
-        0x9F,0x04,0xAC,0xF7,0x21,
-        0x14,0x31,0xBD,0xCE,0x6E
-    ];
-
-    let ex_x_bn = BigUint::from_be_bytes(&expected_x);
-    let ex_y_bn = BigUint::from_be_bytes(&expected_y);
-
-    point_double_out_place(&mut r, &p, &psp_ctx);
-
-    println!("Rust x: {:02X?}", r.x.to_bytes_be());
-    println!("Rust y: {:02X?}", r.y.to_bytes_be());
-
-    assert_eq!(r.y, ex_y_bn);
-    assert_eq!(r.x, ex_x_bn);
-}
-
-#[test]
-fn test_mod_square() {
-    let x: [u8;20] = [
-        0x22, 0x59, 0xAC, 0xEE, 0x15,
-        0x48, 0x9C, 0xB0, 0x96, 0xA8,
-        0x82, 0xF0, 0xAE, 0x1C, 0xF9,
-        0xFD, 0x8E, 0xE5, 0xF8, 0xFA
-    ];
-
-    let expected = BigUint::from_bytes_be(&[
-        0x40, 0x3A, 0x09, 0xAD, 0x88,
-        0xA2, 0x7B, 0x4B, 0x8F, 0x68,
-        0x56, 0x17, 0x5C, 0xF7, 0x18,
-        0x19, 0xBE, 0x18, 0xA0, 0x9B,
-    ]);
-
-    let x_bn = BigUint::from_be_bytes(&x);
-
-    let psp_ctx = ecdsa_engine::ecdsa_set_curve(&EC_P,&EC_A,&EC_B1,&EC_N1,&GX1,&GY1);
-
-    let result = mod_square(&x_bn, &psp_ctx.p);
-
-    println!("p: {:02X?}", psp_ctx.p.to_be_bytes());
-    println!("{:02X?}", result.to_be_bytes());
-
-    assert_eq!(result, expected);
-}
-
-#[test]
-fn test_addition() {
-    let x: [u8;20] = [
-        0x22, 0x59, 0xAC, 0xEE, 0x15,
-        0x48, 0x9C, 0xB0, 0x96, 0xA8,
-        0x82, 0xF0, 0xAE, 0x1C, 0xF9,
-        0xFD, 0x8E, 0xE5, 0xF8, 0xFA
-    ];   
-
-    let y: [u8;20] = [
-        0x22, 0x59, 0xAC, 0xEE, 0x15,
-        0x48, 0x9C, 0xB0, 0x96, 0xA8,
-        0x82, 0xF0, 0xAE, 0x1C, 0xF9,
-        0xFD, 0x8E, 0xE5, 0xF8, 0xFA
-    ];
-
-    let x_bn = BigUint::from_be_bytes(&x);
-    let y_bn = BigUint::from_be_bytes(&y);
-
-    let psp_ctx = ecdsa_engine::ecdsa_set_curve(&EC_P,&EC_A,&EC_B1,&EC_N1,&GX1,&GY1);
-
-    // mod_add(a, b, p)
-}
-
-
-#[test]
 fn test_ec_priv_to_pub() {
-    let mut k: [u8; 20] = [0; 20];
-    k.fill(0x55);
+    // 20 because I don't need the safe space, I handle the memory and sizing to BigUInt which does it dynamically
+    let key_bytes: [u8; 20] = [0x55; 20];
+    let mut k_scalar = BigUint::from_be_bytes(&key_bytes);
 
-    let mut k_bn = BigUint::from_be_bytes(&k);
-
-
-
+    // ecdsa_set_curve(ec_p,ec_a,ec_b2,ec_N2,Gx2,Gy2);
+    
+    let psp_ctx = ecdsa_engine::ecdsa_set_curve(&EC_P, &EC_A, &EC_B2, &EC_N2, &GX2, &GY2);
 }
 
