@@ -251,6 +251,7 @@ void hex_dump(char *str, u8 *buf, int size);
 void point_double(struct point *r, struct point *p);
 void elt_square(u8 *d, u8 *a);
 void elt_mul(u8 *d, u8 *a, u8 *b);
+void bn_from_mon(u8 *d, u8 *N, u32 n);
 
 #define		round_up(x,n)	(-(-(x) & -(n)))
 

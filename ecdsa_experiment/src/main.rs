@@ -6,7 +6,7 @@ use num_bigint::BigUint;
 use kirk_headers::Kirk_CMD12_BUFFER;
 mod misc_decrypt;
 use misc_decrypt::ecdsa_engine;
-use crate::misc_decrypt::{ecdsa_engine::{PSP_CTX, ecdsa_set_curve}, mod_operations::mod_add};
+use crate::misc_decrypt::{ecdsa_engine::{PSP_CTX, ec_priv_to_pub, ecdsa_set_curve}, mod_operations::mod_add};
 use ecdsa_engine::point_double_out_place;
 use misc_decrypt::mod_operations::{mod_square};
 
@@ -26,12 +26,6 @@ pub static EC_P: [u8; 20] = [
     0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 ];
 
-pub static EC_A: [u8; 20] = [
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00,
-    0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0xFF, 0xFF, 0xFF, 0xFC,
-];
-
 // KIRK 1 - unique curve parameters for b, N, and base point G
 pub static EC_B1: [u8; 20] = [
     0x65, 0xD1, 0x48, 0x8C, 0x03, 0x59, 0xE2, 0x34,
@@ -46,25 +40,43 @@ pub static EC_N1: [u8; 21] = [
 ];
 
 // need to convert this into BIGNUMBER, THIS WAS IN THE MONTGOMERY FORM
-// pub static EC_B2: [u8;20] = [
-//     0xA6, 0x8B, 0xED, 0xC3, 0x34, 
-//     0x18, 0x02, 0x9C, 0x1D, 0x3C, 
-//     0xE3, 0x3B, 0x9A, 0x32, 0x1F, 
-//     0xCC, 0xBB, 0x9E, 0x0F, 0x0B
-// ];
+// EC_A is standard -3 (mod p) for this curve structure
+pub const EC_A: [u8; 20] = [
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 
+    0xFF, 0xFF, 0xFF, 0xFC
+];
 
-pub static EC_N2 = [
+// EC_B2 converted from Montgomery form via your C test output
+pub const EC_B2: [u8; 20] = [
+    0x43, 0x0F, 0x44, 0x96, 0xFA, 0x24, 0x15, 0x08, 
+    0x83, 0x23, 0x2A, 0x9C, 0x68, 0x0C, 0x02, 0xAD, 
+    0x16, 0xAD, 0xCB, 0xB6
+];
 
-]
+pub static GX2: [u8; 20] = [
+    0x12, 0x8E, 0xC4, 0x25, 
+    0x64, 0x87, 0xFD, 0x8F, 
+    0xDF, 0x64, 0xE2, 0x43, 
+    0x7B, 0xC0, 0xA1, 0xF6, 
+    0xD5, 0xAF, 0xDE, 0x2C 
+];
 
-pub static GX2 = [
+pub static GY2: [u8; 20] = [
+    0x59, 0x58, 0x55, 0x7E, 
+    0xB1, 0xDB, 0x00, 0x12, 
+    0x60, 0x42, 0x55, 0x24, 
+    0xDB, 0xC3, 0x79, 0xD5, 
+    0xAC, 0x5F, 0x4A, 0xDF 
+];
 
 
-]
-
-pub static GY2 = [
-
-]
+pub static EC_N2: [u8; 21] = [
+    0x00, 0xFF, 0xFF, 0xFF, 0xFF, 
+    0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 
+    0xFF, 0xB5, 0xAE, 0x3C, 0x52, 
+    0x3E, 0x63, 0x94, 0x4F, 0x21, 0x27
+];
 
 pub static GX1: [u8; 20] = [
     0x22, 0x59, 0xAC, 0xEE, 0x15, 0x48, 0x9C, 0xB0,
@@ -92,18 +104,30 @@ fn main() {
     // point_double_out_place(k, k, &psp_ctx);
     // ec_priv_to_pub(k, (u8*)keypair->public_key.x);
     // ecdsa_engine::ec_priv_to_pub(k, &mut keypair.public_key, &psp_ctx);
-
     println!("Operation succesfully made");
 }
 
+
 #[test]
 fn test_ec_priv_to_pub() {
-    // 20 because I don't need the safe space, I handle the memory and sizing to BigUInt which does it dynamically
+    // 1. We set up the private key (k)
+    // Just a reminder: In the C code, it was 21 bytes: [0x00, 0x55, 0x55, ...]
+    // Mathematically, BigUint ignores the leading zeros, so [0x55; 20] is the same scalar value.
     let key_bytes: [u8; 20] = [0x55; 20];
-    let mut k_scalar = BigUint::from_be_bytes(&key_bytes);
+    let k_scalar = BigUint::from_be_bytes(&key_bytes);
 
-    // ecdsa_set_curve(ec_p,ec_a,ec_b2,ec_N2,Gx2,Gy2);
-    
+    // 2. We set up the curve context
     let psp_ctx = ecdsa_engine::ecdsa_set_curve(&EC_P, &EC_A, &EC_B2, &EC_N2, &GX2, &GY2);
+
+    // 3. Call the function and capture the returned Point
+    let public_key = ecdsa_engine::ec_priv_to_pub(&k_scalar, &psp_ctx);
+
+    // 4. Now assert things about public_key
+    // Example, verifying that is not the point at infinity:
+    assert!(!public_key.is_infinity);
+    
+    // Or print it to compare with the C output (which I have the result):
+    println!("Public Key X: {:02x?}", public_key.x.to_bytes_be());
+    println!("Public Key Y: {:02x?}", public_key.y.to_bytes_be());
 }
 

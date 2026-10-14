@@ -13,7 +13,6 @@ static u8 ec_p[20] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00
 static u8 ec_a[20] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x01, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC}; // mon
 static u8 ec_b2[20] = {0xA6, 0x8B, 0xED, 0xC3, 0x34, 0x18, 0x02, 0x9C, 0x1D, 0x3C, 0xE3, 0x3B, 0x9A, 0x32, 0x1F, 0xCC, 0xBB, 0x9E, 0x0F, 0x0B};// mon
 
-
 // KIRK 1 - Unique curve parameters for b, N, and base point G
 // Since public key is hard coded, it is also included
 static u8 ec_b1[20] = {0x65, 0xD1, 0x48, 0x8C, 0x03, 0x59, 0xE2, 0x34, 0xAD, 0xC9, 0x5B, 0xD3, 0x90, 0x80, 0x14, 0xBD, 0x91, 0xA5, 0x25, 0xF9};
@@ -62,15 +61,15 @@ int main() {
     // we fill here every byte from k with zeroes excepct for the first one, just to replicate the same behaviour form the original tool
     memset(k + 1, 0x55, 0x14);
 
-    // We define an array that will store the result of conversion. From what I see it needs 40 bytes of size.
+    // we define an array that will store the result of conversion. from what i see it needs 40 bytes of size.
     u8 public_key[40] = {0};
 
     ec_priv_to_pub(k, public_key);
 
-    // We use the format of hexadecimal with 0 for padding and 2 of size for each byte representation
-    printf("Private key (k): ");
+    // we use the format of hexadecimal with 0 for padding and 2 of size for each byte representation
+    printf("private key (k): ");
     for (int i = 0; i < 0x15; i++) {
-        printf("%02X", k[i]);
+        printf("%02x", k[i]);
     }
     printf("\n\n");
 

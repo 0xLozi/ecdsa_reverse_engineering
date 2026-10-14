@@ -39,17 +39,16 @@ pub fn ecdsa_set_curve(p: &[u8], a: &[u8], b: &[u8], n: &[u8], gx: &[u8], gy: &[
 }
 
 // ecdsa_engine::ec_priv_to_pub(k, &mut keypair.public_key, &psp_ctx);
-pub fn ec_priv_to_pub(k: [u8;20], Q: &Point, psp_ctx: &PSP_CTX) -> Result<(), Error> {
+pub fn ec_priv_to_pub(k: &BigUint, psp_ctx: &PSP_CTX) -> Point {
     let mut ec_temp = Point {
         x: BigUint::zero(),
         y: BigUint::zero(),
         is_infinity: true
     };
 
-    let k_scalar = BigUint::from_be_bytes(&k);
-    point_mul(&mut ec_temp, &k_scalar, &psp_ctx.g, &psp_ctx);
+    point_mul(&mut ec_temp, &k, &psp_ctx.g, &psp_ctx);
 
-    Ok(())
+    ec_temp
 }
 
 pub fn point_mul(d: &mut Point, a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) {

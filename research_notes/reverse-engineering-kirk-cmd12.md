@@ -708,7 +708,31 @@ This could mean that the value from `ec_b2` is already set into the Montgomery F
 
 > I think those are the only arrays that enters in the same bag
 
+This is how basically It works inside `ec_priv_to_pub`. Therefore what we have to do is create `ec_temp`, which is a temporary struct that we use in order to stack the results that are going throughout the `point_mul` routine, and after that copy the result inside `Q`.
 
+```gdb
+ec_priv_to_pub (k=0x7fffffffdf30 "", Q=0x7fffffffdf50 "")
+    at ec.c:354
+354	{
+(gdb) n
+356	 bn_to_mon(k, ec_N, 21);
+(gdb) n
+357	 point_mul(&ec_temp, k, &ec_G);
+(gdb) n
+358	 point_from_mon(&ec_temp); 
+(gdb) n
+360	 memcpy(Q,ec_temp.x,20);
+(gdb) n
+361	 memcpy(Q+20,ec_temp.y,20);
+(gdb) n
+362	}
+```
+
+
+
+
+
+this is 
 
 
 
