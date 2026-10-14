@@ -729,12 +729,8 @@ ec_priv_to_pub (k=0x7fffffffdf30 "", Q=0x7fffffffdf50 "")
 ```
 
 
-
-
-
-this is 
-
-
+**Decision design about making `ec_priv_to_pub` not void:**
+I don't need to pre-allocate an empty `Point` and pass it by reference. That is the old C way of doing things (using output parameters because C functions can only return one value). Therefore in rust, I can just let the function return the constructed Point and then assign it directly without any sort of issue.
 
 
 
