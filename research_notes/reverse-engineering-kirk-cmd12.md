@@ -735,4 +735,3 @@ I don't need to pre-allocate an empty `Point` and pass it by reference. That is 
 
 
 
-

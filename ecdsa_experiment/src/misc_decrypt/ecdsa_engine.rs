@@ -52,13 +52,8 @@ pub fn ec_priv_to_pub(k: &BigUint, psp_ctx: &PSP_CTX) -> Point {
 }
 
 pub fn point_mul(d: &mut Point, a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) {
-    // point_zero(d); We already did this on "ec_priv_to_pub"
-    // for i in (1..160).rev() {
-    //     point_double(d, d, psp_ctx);
-    //     if a.bit(i) {
-    //         point_add(d, d, b);
-    //     }
-    // }
+    // point_zero not needed, already did it inside ec_priv_to_pub(k, psp_ctx)
+    
 }
 
 // this is when r and p are different pointers. I do this because in Rust I cannot perform in-place doubling
