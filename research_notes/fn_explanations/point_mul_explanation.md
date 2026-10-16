@@ -68,8 +68,39 @@ We don't necessary understand why this approach is better for the translation, s
 > We constantly choose $R$ to be a power of 2 (e.g., $2^{160}$ or $2^{256}$), it depens on the curve size obviously)
 > Dividing by a power of 2 is simply a right bit shift, In other words "Ignore the top words and keep the bottom words", so no slow division by N is needed. This algorithm, I looked it up, is called Montgomery Reduction (`REDC`).
 
+## Design Decisions
+### Design Decision: Differences between Field math and Curve Math
+While `num-bigint`'s `BigUint` automatically handles low-level optimizations (e.g Montgomery Reduction) for **Field Arithmetic** (Integer × Integer mod PP), it has no concept of **Curve Arithmetic** (Integer × Point). 
+
+Because of that, we can't just simply do a multiply function and that's it. We have to implement the `Double-And-Add` algorithm in order to dictate how points are combined, while delegating the modular arithmetic (such as `mod_add`, `mod_mul`, `mod_inv`) to `BigUint`.
 
 
+> [!IMPORTANT] Just to clarify
+> - **Our responsibility now:** Implement the control flow (bit-by-bit loop) that defined Elliptic Curve scalar multiplication
+> - `BigUint`'s responsibility: Execute modular addition, subtraction, multiplication, and inversion efficiently without manually manage byte arrays, or Montgomery forms such as Legacy C code does.
+
+### Design Decision: Double and add Algorithm
+The bit by bit iteration, at first I though it was just another weird optimization tricks that I stumbled across during my reverse engineering journey of this tool. However this is not a simple "optimization", It's literally the fundamental definition of scalar multiplication on an elliptic curve. So because computers cannot do at a native level multiplying a scalar by a geometric point, we have to build the result in an iterative way.
+
+The algorithm goes from the `MSB` (**Most Significant Bit**, that's why it starts with mask `0x80`), to the Least one (`LSB`). For every single bit, these rules apply:
+1. **ALWAYS perform `point_double`:** This basically shifts the current accumulated point up by a power of 2.
+2. **The conditional:** Perform `point_add` with the base point $G$ ONLY IF the current masked bit is `1` (remember this).
+**Example:** Use the example above that explains these procedure by using 5 (`101`)
+
+### Design Decision: Data Representation
+Inside the original C implementation, the private key k was declared as a 21-byte array (`u8 k[0x15]`), with the first byte explicitly set to `0x00`.
+
+- **C Context:** this was a defensive measure in order to prevent buffer overflows while performing modular arithmetic carries.
+- **Rust Context:** `BigUint` is dynamically sized. Therefore a leading zero byte doesn't change the math value of the integer. As a result we can safely use a strict 20-byte array like `[u8;20]`. And `BigUint::from_bytes_be()` will handle the parsing safely.
+
+### Final decision of Implementation
+Based on everything I've explained above, the Rust implementation of `point_mul` will be like this:
+1. Initialize the result point `d` to the Point at `Infinity`.
+2. Convert `BigUint` scalar a into `BigEndian` byte slice, so we ensure we process from `MSB` to `LSB`
+3. Iterate through EACH BYTE, and within that, iterate through the 8 bits using a descending mask (`0x80` down to `0x01`, remember).
+4. Then without any sort of condition call `point_double_out_place` on each iteration.
+5. But using a Condition we call `point_double_out_place` if `(byte & mask) != 0`.
+6. Then rely entirely on the `mod_operations.rs` that I've written for the underlying math, trusting `BigUInt` to handle the big thing to us safely!!!
 
 
 
