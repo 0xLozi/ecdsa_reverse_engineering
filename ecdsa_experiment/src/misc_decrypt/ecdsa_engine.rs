@@ -1,5 +1,5 @@
 use std::{fmt::Error, sync::Arc};
-use num_traits::{FromBytes, Zero};
+use num_traits::{FromBytes, ToBytes, Zero};
 use crate::{BigUint, misc_decrypt::mod_operations::{mod_add, mod_inv, mod_mul, mod_sub}};
 use super::mod_operations::{mod_square};
 
@@ -40,20 +40,47 @@ pub fn ecdsa_set_curve(p: &[u8], a: &[u8], b: &[u8], n: &[u8], gx: &[u8], gy: &[
 
 // ecdsa_engine::ec_priv_to_pub(k, &mut keypair.public_key, &psp_ctx);
 pub fn ec_priv_to_pub(k: &BigUint, psp_ctx: &PSP_CTX) -> Point {
-    let mut ec_temp = Point {
-        x: BigUint::zero(),
-        y: BigUint::zero(),
-        is_infinity: true
-    };
-
-    point_mul(&mut ec_temp, &k, &psp_ctx.g, &psp_ctx);
-
-    ec_temp
+    point_mul(k, &psp_ctx.g, &psp_ctx)
 }
 
-pub fn point_mul(d: &mut Point, a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) {
-    // point_zero not needed, already did it inside ec_priv_to_pub(k, psp_ctx)
-    
+pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
+
+    let mut d = Point {
+        x: BigUint::zero(),
+        y: BigUint::zero(),
+        is_infinity: true,
+    };
+
+    let masks: [u8;8] = [0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01];
+
+    for byte in a.to_bytes_be() {
+        for mask in masks {
+            point_double_in_place(&mut d, psp_ctx);
+            if (byte & mask) != 0 {
+                point_add_in_place(&mut d, b, psp_ctx);
+            }
+        }
+    }
+
+    d
+}
+
+pub fn point_add(r: &mut Point, d: &mut Point, b: &Point) {
+
+}
+
+pub fn point_add_in_place(r: &mut Point, b: &Point, psp_ctx: &PSP_CTX) {
+    // WE HAVE TO TRANSLATE THIS USING THE OUT_PLACE IMPLEMENTATION AS A TEMPLATE
+
+}
+
+
+pub fn point_double_in_place(r: &mut Point, ctx: &PSP_CTX) {
+    if r.is_infinity || r.y == BigUint::zero() {
+        *r = Point { x: BigUint::zero(), y: BigUint::zero(), is_infinity: true };
+        return;
+    }
+
 }
 
 // this is when r and p are different pointers. I do this because in Rust I cannot perform in-place doubling

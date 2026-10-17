@@ -100,7 +100,62 @@ Based on everything I've explained above, the Rust implementation of `point_mul`
 3. Iterate through EACH BYTE, and within that, iterate through the 8 bits using a descending mask (`0x80` down to `0x01`, remember).
 4. Then without any sort of condition call `point_double_out_place` on each iteration.
 5. But using a Condition we call `point_double_out_place` if `(byte & mask) != 0`.
-6. Then rely entirely on the `mod_operations.rs` that I've written for the underlying math, trusting `BigUInt` to handle the big thing to us safely!!!
+6. Then rely entirely on the `mod_operations.rs` that I've written for the underlying math, trusting `BigUInt` to handle the rest to us in a safer manner.
+
+#### Parameters from `point_mul`
+What I had to do is delete a parameter inside the original C function, because I have everything inside the `psp_ctx` struct. Therefore I though it was unnecessary to send independently references that point into the same struct.  **So instead of using these parameters:**
+```rust
+pub fn point_mul(d: &mut Point, a: &BigUint, b: &mut Point, psp_ctx: &PSP_CTX)
+```
+
+**My decision is this one:**
+```rust
+pub fn point_mul(d: &mut Point, a: &BigUint, psp_ctx: &PSP_CTX)
+```
+
+**But why?:** Because inside `psp_ctx` we already have `ec_G`. Therefore we can just use it by calling `psp_ctx.g` and that's it.
+
+> [!Caution] The thing above... I changed my mind
+> Since I don't know whether this function si gonna get called inside another function and also for understand more the next code, I stick with this: `pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point`
+
+**There's also another issue going on inside my code:**
+```rust
+pub fn ec_priv_to_pub(k: &mut BigUint, psp_ctx: &PSP_CTX) -> Point {
+    let mut ec_temp: Point;
+    point_mul(&mut ec_temp, k, &psp_ctx);
+	// ... more code
+```
+
+Here we are sending an unitialized variable which causes the Rust compiler to argue with me. And since I was initializing `ec_temp` inside `point_mul` just to make the function portable and also just in case there's another function that calls it (which we don't know yet) now I got stuck at this. But there's a solution that I can do based on how it behaves `ec_temp` inside:
+
+- It serves as a way to store the results that the main for-loop does while performing the mask `AND`'s and the iteration from the `a` pointer.
+
+With that Idea in mind, I think I can just make `ec_temp` initialize itself inside `point_mul` rather than sending it from `ec_priv_to_pub`. With that I can just declare a variable called `ec_temp` and make a refactoring like **Replace function with Query**.
+
+Since while lookin below in C, they perform a `memcpy` after making the result to point from Montgomery. So technically since I'm not gonna use Montgomery form, I think I can just make the result of `ec_priv_to_pub`, the result of `point_mul` itself. Result:
+
+```rust
+pub fn ec_priv_to_pub(k: &BigUint, psp_ctx: &PSP_CTX) -> Point {
+    point_mul(k, &psp_ctx.g, &psp_ctx)
+}
+```
+
+Wow, that was much simpler than I expected tbh. And respective change into `point_mul` might be this one:
+
+```rust
+pub fn point_mul(a: &BigUInt, b: &Point,  psp_ctx: &PSP_CTX) -> Point {
+	let mut d = Point {
+		x: BigUint::zero(),
+		y: BigUInt::zero(),
+		is_infinity: true,
+	}
+	// ... more code that I need to reverse engineer...
+}
+```
+
+
+
+
 
 
 
