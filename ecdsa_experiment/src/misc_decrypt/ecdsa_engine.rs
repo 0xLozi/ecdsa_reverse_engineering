@@ -74,12 +74,59 @@ pub fn point_add_in_place(r: &mut Point, b: &Point, psp_ctx: &PSP_CTX) {
 
 }
 
-
+// Design Decision: point_double_out_place
+// - Problem: Needed to avoid mutating input while updating result `r` without any sort of heap allocations.
+// - First consideration: Cloning `BigUInt` (Safe, but caused unnecessary heap allocations and this functions will be called hundreds of times...).
+// - Final Choice: Used immutable read references to `r` BEFORE mutating, achieving zero allocations!!!!
 pub fn point_double_in_place(r: &mut Point, ctx: &PSP_CTX) {
     if r.is_infinity || r.y == BigUint::zero() {
         *r = Point { x: BigUint::zero(), y: BigUint::zero(), is_infinity: true };
         return;
     }
+
+    // let p: &Point = r;
+
+    // Calculation of the slope
+    let mut t = mod_square(&r.x, &ctx.p); // t = px * px
+    let mut s = mod_add(&t, &t, &ctx.p); // s = 2*px*px
+    s = mod_add(&s, &t, &ctx.p); // s = 3*px*px
+    s = mod_add(&s, &ctx.a, &ctx.p); // s = 3*px*px + a
+    t = mod_add(&r.y, &r.y, &ctx.p); // t = 2*py
+    t = mod_inv(&t, &ctx.p); // t = 1/(2*p.y)
+    s =  mod_mul(&s, &t, &ctx.p); // s = (3*px*px+a)/(2*py)
+
+
+    // Then we Calculate the new coordinates
+    //   let rx = &mut r.x;
+    //   *rx = mod_square(&s, &ctx.p);
+    //   t = mod_add(&p.x, &p.x, &ctx.p);
+    //   // I cant send &r.x as "a" because I'm borrowinng as a mutable reference at line 74. Therefore I'm gonna use rx instead
+    //   *rx = mod_sub(&rx, &t, &ctx.p);
+
+    //   t = mod_sub(&p.x, &r.x, &ctx.p);
+    //   let ry = &mut r.y;
+    //   *ry = mod_mul(&s, &t, &ctx.p);
+    //   *ry = mod_sub(&ry, &p.y, &ctx.p);
+
+    let mut s_square = mod_square(&r.x, &s);
+    t = mod_add(&r.x, &r.x, &ctx.p);
+    s_square = mod_sub(&s_square, &t, &ctx.p);
+    t = mod_sub(&r.x, &s_square, &ctx.p);
+
+    
+    
+
+
+
+    *rx = mod_square(&s, &ctx.p);
+    t = mod_add(&p.x, &p.x, &ctx.p);
+    // I cant send &r.x as "a" because I'm borrowinng as a mutable reference at line 74. Therefore I'm gonna use rx instead
+    *rx = mod_sub(&rx, &t, &ctx.p);
+
+    t = mod_sub(&p.x, &r.x, &ctx.p);
+    let ry = &mut r.y;
+    *ry = mod_mul(&s, &t, &ctx.p);
+    *ry = mod_sub(&ry, &p.y, &ctx.p);
 
 }
 
