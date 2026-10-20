@@ -65,12 +65,46 @@ pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
     d
 }
 
-pub fn point_add(r: &mut Point, d: &mut Point, b: &Point) {
+// r = destination
+// p = number A
+// q = number B
+// ctx = well, the context lmao
+pub fn point_add(r: &mut Point, p_to_add: &mut Point, q: &Point, psp_ctx: &PSP_CTX) {
+    let s: BigUint;
+    let t: BigUint;
+    let u: BigUint;
+
+    let pp = p_to_add.clone();
+    let qq = q.clone();
+
+    let px = &pp.x;
+    let py = &pp.y;
+    let qx = &qq.x;
+    let qy = &qq.y;
+
+    let rx = &mut r.x;
+    let ry = &mut r.y;
+
+    if r.is_infinity {
+        *r = p_to_add.clone();
+        return;
+    }
+
+    if p_to_add.is_infinity {
+        return; 
+    }
+
+    
+
+
+
+
 
 }
 
 pub fn point_add_in_place(r: &mut Point, b: &Point, psp_ctx: &PSP_CTX) {
     // WE HAVE TO TRANSLATE THIS USING THE OUT_PLACE IMPLEMENTATION AS A TEMPLATE
+
 
 }
 
@@ -142,7 +176,6 @@ pub fn point_double_out_place(r: &mut Point, p: &Point, ctx: &PSP_CTX) {
     t = mod_inv(&t, &ctx.p); // t = 1/(2*p.y)
     s =  mod_mul(&s, &t, &ctx.p); // s = (3*px*px+a)/(2*py)
 
-
     let rx = &mut r.x;
     let ry = &mut r.y;
 
@@ -183,4 +216,12 @@ pub fn print_slice(slice: PrintableData) {
     }
     // Then we print a new line after the end
     println!();
+}
+
+    
+fn elt_copy(dest: &mut BigUint, a: &BigUint) {
+    // memcpy(d, a, 20); It copies 20, 20*8 = 160 => 160 refers to BigUint types. Therefore my hypothesis is that this copies BigUInt Types
+    // and with this implementation I avoid buffer overflows 
+    // Chose this over `*dest = a.clone()` since this way drops the old memory that dest was holding, then allocates new memory for te cloned value and assigns it to dest. The other way we can reuse the same memory instead.
+    dest.clone_from(a);
 }
