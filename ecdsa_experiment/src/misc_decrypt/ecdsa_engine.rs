@@ -124,32 +124,46 @@ pub fn point_double_in_place(r: &mut Point, ctx: &PSP_CTX) {
 
 // this is when r and p are different pointers. I do this because in Rust I cannot perform in-place doubling
 pub fn point_double_out_place(r: &mut Point, p: &Point, ctx: &PSP_CTX) {
-  if p.is_infinity || p.y == BigUint::ZERO {
-    *r = Point { x: BigUint::zero(), y: BigUint::zero(), is_infinity: true };
-    return;
-  }
+    let pp = p.clone();
+    let px = &pp.x;
+    let py = &pp.y;
 
-  // Here we calculate the slope
-  let mut t = mod_square(&p.x, &ctx.p); // t = px * px
-  let mut s = mod_add(&t, &t, &ctx.p); // s = 2*px*px
-  s = mod_add(&s, &t, &ctx.p); // s = 3*px*px
-  s = mod_add(&s, &ctx.a, &ctx.p); // s = 3*px*px + a
-  t = mod_add(&p.y, &p.y, &ctx.p); // t = 2*py
-  t = mod_inv(&t, &ctx.p); // t = 1/(2*p.y)
-  s =  mod_mul(&s, &t, &ctx.p); // s = (3*px*px+a)/(2*py)
+    if p.is_infinity || p.y == BigUint::ZERO {
+        *r = Point { x: BigUint::zero(), y: BigUint::zero(), is_infinity: true };
+        return;
+    }
 
-  // rx = r->x
-  // Then we Calculate the new coordinates
-  let rx = &mut r.x;
-  *rx = mod_square(&s, &ctx.p);
-  t = mod_add(&p.x, &p.x, &ctx.p);
-  // I cant send &r.x as "a" because I'm borrowing as a mutable reference at line 74. Therefore I'm gonna use rx instead
-  *rx = mod_sub(&rx, &t, &ctx.p);
+    // Here we calculate the slope
+    let mut t = mod_square(&p.x, &ctx.p); // t = px * px
+    let mut s = mod_add(&t, &t, &ctx.p); // s = 2*px*px
+    s = mod_add(&s, &t, &ctx.p); // s = 3*px*px
+    s = mod_add(&s, &ctx.a, &ctx.p); // s = 3*px*px + a
+    t = mod_add(&p.y, &p.y, &ctx.p); // t = 2*py
+    t = mod_inv(&t, &ctx.p); // t = 1/(2*p.y)
+    s =  mod_mul(&s, &t, &ctx.p); // s = (3*px*px+a)/(2*py)
 
-  t = mod_sub(&p.x, &r.x, &ctx.p);
-  let ry = &mut r.y;
-  *ry = mod_mul(&s, &t, &ctx.p);
-  *ry = mod_sub(&ry, &p.y, &ctx.p);
+
+    let rx = &mut r.x;
+    let ry = &mut r.y;
+
+    *rx = mod_square(&s, &ctx.p); // rx = s*s
+
+    //   elt_add(t, px, px); // t = 2*px
+    t = mod_add(px, px, &ctx.p); // t = 2*px
+
+    //   elt_sub(rx, rx, t); // rx = s*s - 2*px
+    *rx = mod_sub(rx, &t, &ctx.p);
+
+    //   elt_sub(t, px, rx); // t = -(rx-px)
+    t = mod_sub(px, rx, &ctx.p);
+
+    //   elt_mul(ry, s, t);  // ry = -s*(rx-px)
+    *ry = mod_mul(&s, &t, &ctx.p);
+
+    //   elt_sub(ry, ry, py);  // ry = -s*(rx-px) - py
+    *ry = mod_sub(ry, py, &ctx.p);
+
+ 
 }
 
 
