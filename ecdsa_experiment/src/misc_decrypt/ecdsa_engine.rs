@@ -79,12 +79,15 @@ pub fn point_add_in_place(r: &mut Point, b: &Point, psp_ctx: &PSP_CTX) {
 // - First consideration: Cloning `BigUInt` (Safe, but caused unnecessary heap allocations and this functions will be called hundreds of times...).
 // - Final Choice: Used immutable read references to `r` BEFORE mutating, achieving zero allocations!!!!
 pub fn point_double_in_place(r: &mut Point, ctx: &PSP_CTX) {
+
+    let pp = r.clone();
+    let px = &pp.x;
+    let py = &pp.y;
+
     if r.is_infinity || r.y == BigUint::zero() {
         *r = Point { x: BigUint::zero(), y: BigUint::zero(), is_infinity: true };
         return;
     }
-
-    // let p: &Point = r;
 
     // Calculation of the slope
     let mut t = mod_square(&r.x, &ctx.p); // t = px * px
@@ -95,38 +98,27 @@ pub fn point_double_in_place(r: &mut Point, ctx: &PSP_CTX) {
     t = mod_inv(&t, &ctx.p); // t = 1/(2*p.y)
     s =  mod_mul(&s, &t, &ctx.p); // s = (3*px*px+a)/(2*py)
 
-
-    // Then we Calculate the new coordinates
-    //   let rx = &mut r.x;
-    //   *rx = mod_square(&s, &ctx.p);
-    //   t = mod_add(&p.x, &p.x, &ctx.p);
-    //   // I cant send &r.x as "a" because I'm borrowinng as a mutable reference at line 74. Therefore I'm gonna use rx instead
-    //   *rx = mod_sub(&rx, &t, &ctx.p);
-
-    //   t = mod_sub(&p.x, &r.x, &ctx.p);
-    //   let ry = &mut r.y;
-    //   *ry = mod_mul(&s, &t, &ctx.p);
-    //   *ry = mod_sub(&ry, &p.y, &ctx.p);
-
-    let mut s_square = mod_square(&r.x, &s);
-    t = mod_add(&r.x, &r.x, &ctx.p);
-    s_square = mod_sub(&s_square, &t, &ctx.p);
-    t = mod_sub(&r.x, &s_square, &ctx.p);
-
-    
-    
-
-
-
-    *rx = mod_square(&s, &ctx.p);
-    t = mod_add(&p.x, &p.x, &ctx.p);
-    // I cant send &r.x as "a" because I'm borrowinng as a mutable reference at line 74. Therefore I'm gonna use rx instead
-    *rx = mod_sub(&rx, &t, &ctx.p);
-
-    t = mod_sub(&p.x, &r.x, &ctx.p);
+    let rx = &mut r.x;
     let ry = &mut r.y;
-    *ry = mod_mul(&s, &t, &ctx.p);
-    *ry = mod_sub(&ry, &p.y, &ctx.p);
+
+    // elt_square(rx, s);  // rx = s*s
+    *rx = mod_square(&s, &ctx.p); // rx = s*s
+
+    // elt_add(t, px, px); // t = 2*px Here px  is pp.y,and pp = a struct point that contains the base value that was being sent. So I have to clone r. THAT'S WHY I COULND'T MANAGE TO IMPLEMENT THIS FUCKING Function...
+    t = mod_add(px, px, &ctx.p); // t = 2*px
+
+    // elt_sub(rx, rx, t); // rx = s*s - 2*px
+    *rx = mod_sub(rx, &t, &ctx.p); // rx = s*s - 2*px
+
+    // elt_sub(t, px, rx); // t = -(rx-px)
+    t = mod_sub(px, rx, &ctx.p); // t = -(rx-px)
+
+    // elt_mul(ry, s, t);  // ry = -s*(rx-px)
+    *ry = mod_mul(&s, &t, &ctx.p); // ry = -s*(rx-px)
+
+    // elt_sub(ry, ry, py);  // ry = -s*(rx-px) - py
+    *ry = mod_sub(ry, py, &ctx.p);
+
 
 }
 
@@ -151,7 +143,7 @@ pub fn point_double_out_place(r: &mut Point, p: &Point, ctx: &PSP_CTX) {
   let rx = &mut r.x;
   *rx = mod_square(&s, &ctx.p);
   t = mod_add(&p.x, &p.x, &ctx.p);
-  // I cant send &r.x as "a" because I'm borrowinng as a mutable reference at line 74. Therefore I'm gonna use rx instead
+  // I cant send &r.x as "a" because I'm borrowing as a mutable reference at line 74. Therefore I'm gonna use rx instead
   *rx = mod_sub(&rx, &t, &ctx.p);
 
   t = mod_sub(&p.x, &r.x, &ctx.p);
