@@ -72,12 +72,7 @@ pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
 // p = number A
 // q = number B
 // ctx = well, the context lmao
-pub fn point_add(r: &mut Point, p_to_add: &mut Point, q: &Point, psp_ctx: &PSP_CTX) {
-    let s: BigUint;
-    let t: BigUint;
-    let mut u: BigUint;
-
-    if p_to_add.is_infinity() {
+pub fn point_add_out_place(r: &mut Point, p_to_add: &Point, q: &Point, psp_ctx: &PSP_CTX) { if p_to_add.is_infinity() {
         *r = q.clone();
         return;
     }
@@ -87,29 +82,32 @@ pub fn point_add(r: &mut Point, p_to_add: &mut Point, q: &Point, psp_ctx: &PSP_C
         return;
     }
 
-    let pp = p_to_add.clone();
-    let qq = q.clone();
-
-    let px = &pp.x;
-    let py = &pp.y;
-    let qx = &qq.x;
-    let qy = &qq.y;
-
-    let rx = &mut r.x;
-    let ry = &mut r.y;
-
-    u = mod_sub(qx, px, &psp_ctx.p);
+    let mut u = mod_sub(&q.x, &p_to_add.x, &psp_ctx.p);
 
     if u.is_zero() {
-        u = mod_sub(qy, py, &psp_ctx.p);
+        u = mod_sub(&q.y, &p_to_add.y, &psp_ctx.p);
         if u.is_zero() {
-            point_double_out_place(r, &pp, psp_ctx);
+            point_double_out_place(r, &p_to_add, psp_ctx);
         } else {
             *r = Point::infinity();
         }
         return;
     }
 
+    let rx = &mut r.x;
+    let ry = &mut r.y;
+
+    let mut t = mod_inv(&u, &psp_ctx.p); // t = 1/(qx-px)
+    u = mod_sub(&q.y, &p_to_add.y, &psp_ctx.p); // u = qy-py
+    let s= mod_mul(&t, &u, &psp_ctx.p); // s = (qy-py)/(qx-px)
+
+    *rx = mod_square(&s, &psp_ctx.p); // rx = s*s
+    t = mod_add(&p_to_add.x, &q.x, &psp_ctx.p); // t = px+qx
+    *rx = mod_sub(rx, &t, &psp_ctx.p); // rx = s*s - (px+qx)
+
+    t = mod_sub(&p_to_add.x, rx, &psp_ctx.p); // t = -(rx-px)
+    *ry = mod_mul(&s, &t, &psp_ctx.p); // ry = -s*(rx-px)
+    *ry = mod_sub(ry, &p_to_add.y, &psp_ctx.p); // ry = -s*(rx-px) - py
 }
 
 pub fn point_add_in_place(r: &mut Point, b: &Point, psp_ctx: &PSP_CTX) {
