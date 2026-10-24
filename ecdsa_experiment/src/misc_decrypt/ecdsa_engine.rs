@@ -1,4 +1,3 @@
-use std::{fmt::Error, sync::Arc};
 use num_traits::{FromBytes, ToBytes, Zero};
 use crate::{BigUint, misc_decrypt::mod_operations::{mod_add, mod_inv, mod_mul, mod_sub}};
 use super::mod_operations::{mod_square};
@@ -12,7 +11,16 @@ pub enum PrintableData<'a> {
 pub struct Point {
     pub x: BigUint,
     pub y: BigUint,
-    pub is_infinity: bool,
+}
+
+impl Point {
+    pub fn infinity() -> Self {
+        Point {x: BigUint::zero(), y: BigUint::zero()}
+    }
+
+    pub fn is_infinity(&self) -> bool {
+        self.x.is_zero() && self.y.is_zero()
+    }
 }
 
 pub struct PSP_CTX {
@@ -33,7 +41,6 @@ pub fn ecdsa_set_curve(p: &[u8], a: &[u8], b: &[u8], n: &[u8], gx: &[u8], gy: &[
         g: Point { 
             x: BigUint::from_be_bytes(gx), 
             y: BigUint::from_be_bytes(gy), 
-            is_infinity: false 
         }
     }
 }
@@ -45,11 +52,7 @@ pub fn ec_priv_to_pub(k: &BigUint, psp_ctx: &PSP_CTX) -> Point {
 
 pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
 
-    let mut d = Point {
-        x: BigUint::zero(),
-        y: BigUint::zero(),
-        is_infinity: true,
-    };
+    let mut d = Point::infinity();
 
     let masks: [u8;8] = [0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01];
 
@@ -72,7 +75,17 @@ pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
 pub fn point_add(r: &mut Point, p_to_add: &mut Point, q: &Point, psp_ctx: &PSP_CTX) {
     let s: BigUint;
     let t: BigUint;
-    let u: BigUint;
+    let mut u: BigUint;
+
+    if p_to_add.is_infinity() {
+        *r = q.clone();
+        return;
+    }
+
+    if q.is_infinity() {
+        *r = p_to_add.clone();
+        return;
+    }
 
     let pp = p_to_add.clone();
     let qq = q.clone();
@@ -85,20 +98,17 @@ pub fn point_add(r: &mut Point, p_to_add: &mut Point, q: &Point, psp_ctx: &PSP_C
     let rx = &mut r.x;
     let ry = &mut r.y;
 
-    if r.is_infinity {
-        *r = p_to_add.clone();
+    u = mod_sub(qx, px, &psp_ctx.p);
+
+    if u.is_zero() {
+        u = mod_sub(qy, py, &psp_ctx.p);
+        if u.is_zero() {
+            point_double_out_place(r, &pp, psp_ctx);
+        } else {
+            *r = Point::infinity();
+        }
         return;
     }
-
-    if p_to_add.is_infinity {
-        return; 
-    }
-
-    
-
-
-
-
 
 }
 
@@ -118,8 +128,8 @@ pub fn point_double_in_place(r: &mut Point, ctx: &PSP_CTX) {
     let px = &pp.x;
     let py = &pp.y;
 
-    if r.is_infinity || r.y == BigUint::zero() {
-        *r = Point { x: BigUint::zero(), y: BigUint::zero(), is_infinity: true };
+    if r.is_infinity() || r.y == BigUint::zero() {
+        *r = Point::infinity();
         return;
     }
 
@@ -162,8 +172,8 @@ pub fn point_double_out_place(r: &mut Point, p: &Point, ctx: &PSP_CTX) {
     let px = &pp.x;
     let py = &pp.y;
 
-    if p.is_infinity || p.y == BigUint::ZERO {
-        *r = Point { x: BigUint::zero(), y: BigUint::zero(), is_infinity: true };
+    if p.is_infinity() || p.y == BigUint::ZERO {
+        *r = Point::infinity();
         return;
     }
 
