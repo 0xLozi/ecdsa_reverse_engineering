@@ -1,4 +1,4 @@
-use num_traits::{FromBytes, ToBytes, Zero};
+use num_traits::{FromBytes, Zero};
 use crate::{BigUint, misc_decrypt::mod_operations::{mod_add, mod_inv, mod_mul, mod_sub}};
 use super::mod_operations::{mod_square};
 
@@ -60,11 +60,12 @@ pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
         for mask in masks {
             point_double_in_place(&mut d, psp_ctx);
             if (byte & mask) != 0 {
-                point_add_in_place(&mut d, b, psp_ctx);
+                // point_add_in_place(&mut d, b, psp_ctx);
+                let d_cloned = d.clone();
+                point_add(&mut d, &d_cloned, b, psp_ctx);
             }
         }
     }
-
     d
 }
 
@@ -72,7 +73,9 @@ pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
 // p = number A
 // q = number B
 // ctx = well, the context lmao
-pub fn point_add_out_place(r: &mut Point, p_to_add: &Point, q: &Point, psp_ctx: &PSP_CTX) { if p_to_add.is_infinity() {
+pub fn point_add(r: &mut Point, p_to_add: &Point, q: &Point, psp_ctx: &PSP_CTX) { 
+
+    if p_to_add.is_infinity() {
         *r = q.clone();
         return;
     }
@@ -108,12 +111,6 @@ pub fn point_add_out_place(r: &mut Point, p_to_add: &Point, q: &Point, psp_ctx: 
     t = mod_sub(&p_to_add.x, rx, &psp_ctx.p); // t = -(rx-px)
     *ry = mod_mul(&s, &t, &psp_ctx.p); // ry = -s*(rx-px)
     *ry = mod_sub(ry, &p_to_add.y, &psp_ctx.p); // ry = -s*(rx-px) - py
-}
-
-pub fn point_add_in_place(r: &mut Point, b: &Point, psp_ctx: &PSP_CTX) {
-    // WE HAVE TO TRANSLATE THIS USING THE OUT_PLACE IMPLEMENTATION AS A TEMPLATE
-
-
 }
 
 // Design Decision: point_double_out_place
@@ -203,8 +200,6 @@ pub fn point_double_out_place(r: &mut Point, p: &Point, ctx: &PSP_CTX) {
 
     //   elt_sub(ry, ry, py);  // ry = -s*(rx-px) - py
     *ry = mod_sub(ry, py, &ctx.p);
-
- 
 }
 
 

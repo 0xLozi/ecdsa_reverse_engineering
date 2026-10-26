@@ -142,7 +142,7 @@ pub fn point_add_out_place(r: &mut Point, p_to_add: &Point, q: &Point, psp_ctx: 
 ```
 
 ### Important things to say
-Im not saying that the C implementation is wrong, this decision desing related to create 2 functions that deals with "out_place" and "in_place" implementations. Each of them wre comprised in only 1 function inside C. And these struct clones were neccesarry
+Im not saying that the C implementation is wrong, this decision design related to create 2 functions that deals with "out_place" and "in_place" implementations. Each of them were comprised in only 1 function inside C. And these struct clones were necessary;.
 
 ```c
 point_add(d, d, b);   // ec.c:241 — r and p are the same object
@@ -150,9 +150,21 @@ point_add(d, d, b);   // ec.c:241 — r and p are the same object
 
 `r` aliases `p` in `point_mul`. Without the snapshot, the first `elt_square(rx, s)` overwrites `p->x`, and every later read of `px` (`elt_add(t, px, qx)`, `elt_sub(t, px, rx)`) would read corrupted data. `pp` exists precisely to survive the writes through `rx/ry`.
 
+The copy is required because px/py are read **after** the result is written:
+`elt_square(rx, s)` (221) overwrites p->x before `elt_add(t, px, qx)` (222) and
+`elt_sub(t, px, rx)` (225) read it. py is worse: after `elt_mul(ry, s, t)` (226),
+`elt_sub(ry, ry, py)` (227) subtracts the result from itself, so y collapses to 0.
 
+#### Why one function is enough in Rust
+The same object cannot be passed as both `&mut r` and `&p` because the compiler rejects `point_add(&mut d, &d, b, ctx)`. So the aliasing thing can only happen if the caller creates it, and the caller is the one that knows:
+```rust
+    let d_cloned = d.clone();
+    point_add(&mut d, &d_cloned, b, psp_ctx);
+```
 
+That is C `pp = *p`, moved to the call site. The function is identical in both cases and does no cloning itself; a call whose destination is also an operand pays one `Point` clone (two heap allocations), and every other call pays nothing. `point_add_in_place` is therefore dropped: one implementation, and the caller decides whether a snapshot is needed.
 
+Therefore this file is gonna get called "point_add" rather than "point_add_out_place" And I'm gonna delete "point_addition_in_place" because I don't think it's neccesarry now.
 
 
 
