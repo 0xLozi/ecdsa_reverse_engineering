@@ -734,4 +734,22 @@ I don't need to pre-allocate an empty `Point` and pass it by reference. That is 
 
 
 
+# I WAS WRONG ALL THE TIME 
+
+**Look at this:**
+```c
+// kirk_engine.c:176
+static u8 ec_a[20] = {..., 0xFC}; // mon
+```
+
+While I was looking at the code inside C, I thought this this static variable was already converted into **Montgomery** form. But that hypothesis **was broken into pieces after I saw this:** 
+```c
+// ec.c:378 — ecdsa_set_curve
+memcpy(ec_a, a, 20);
+bn_to_mon(ec_a, ec_p, 20);      // converts it to Montgomery JUST RIGHT HERE
+```
+
+Since while performing a `set curve`, it already converts the it into **Montgomery** form. Therefore, the original value is not converted into **Montgomery** form. It's not **hardcoded** into Montgomery. It's being modified **after**, not **before**. That's why I wasn't getting the same results in Rust as in C...
+
+So I have to change it and put them just as in C are hardcoded
 
