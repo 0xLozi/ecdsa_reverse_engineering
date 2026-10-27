@@ -753,3 +753,11 @@ Since while performing a `set curve`, it already converts the it into **Montgome
 
 So I have to change it and put them just as in C are hardcoded
 
+
+## Still can't get the same results...
+
+
+
+
+
+

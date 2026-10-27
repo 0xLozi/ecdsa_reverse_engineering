@@ -54,22 +54,22 @@ void print_slice(u8* k, int size) {
 
 int main() {
     u8 k[0x15];
+    // we define an array that will store the result of conversion. from what i see it needs 40 bytes of size.
     k[0] = 0x00;
-
     ecdsa_set_curve(ec_p,ec_a,ec_b2,ec_N2,Gx2,Gy2);
 
     // we fill here every byte from k with zeroes excepct for the first one, just to replicate the same behaviour form the original tool
     memset(k + 1, 0x55, 0x14);
 
     // we define an array that will store the result of conversion. from what i see it needs 40 bytes of size.
-    u8 public_key[40] = {0};
+    u8 pb[40] = {0};
 
-    ec_priv_to_pub(k, public_key);
+    ec_priv_to_pub(k, pb);
 
     // we use the format of hexadecimal with 0 for padding and 2 of size for each byte representation
-    printf("private key (k): ");
-    for (int i = 0; i < 0x15; i++) {
-        printf("%02x", k[i]);
+    printf("Private Key (pb): ");
+    for (int i = 0; i < 0x28; i++) {
+        printf("%02X, ", pb[i]);
     }
     printf("\n\n");
 

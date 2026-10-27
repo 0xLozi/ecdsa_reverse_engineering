@@ -93,41 +93,14 @@ pub static GY1: [u8; 20] = [
 
 
 fn main() {
-    let mut outbuff = [1u8;60];
-    let mut keypair = Kirk_CMD12_BUFFER::new(&mut outbuff);
+    let k: [u8; 20] = [0x55; 20];
+    let k_bn = BigUint::from_bytes_be(&k);
 
-    let k: [u8;20] = [
-        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 
-        0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA
-    ];
-    let result: [u8;20];
-
-    // point_double_out_place(k, k, &psp_ctx);
-    // ec_priv_to_pub(k, (u8*)keypair->public_key.x);
-    // ecdsa_engine::ec_priv_to_pub(k, &mut keypair.public_key, &psp_ctx);
-    println!("Operation succesfully made");
-}
-
-
-#[test]
-fn test_ec_priv_to_pub() {
-    // 1. We set up the private key (k)
-    // Just a reminder: In the C code, it was 21 bytes: [0x00, 0x55, 0x55, ...]
-    // Mathematically, BigUint ignores the leading zeros, so [0x55; 20] is the same scalar value.
-    let key_bytes: [u8; 20] = [0x55; 20];
-    let k_scalar = BigUint::from_be_bytes(&key_bytes);
-
-    // 2. We set up the curve context
     let psp_ctx = ecdsa_engine::ecdsa_set_curve(&EC_P, &EC_A, &EC_B2, &EC_N2, &GX2, &GY2);
 
-    // 3. Call the function and capture the returned Point
-    let public_key = ecdsa_engine::ec_priv_to_pub(&k_scalar, &psp_ctx);
+    let result = ec_priv_to_pub(&k_bn, &psp_ctx);
 
-    // 4. Now assert things about public_key
-    // assert!(!public_key.is_infinity);
-    
-    // Or print it to compare with the C output (which I have the result):
-    println!("Public Key X: {:02x?}", public_key.x.to_bytes_be());
-    println!("Public Key Y: {:02x?}", public_key.y.to_bytes_be());
+    result.print_point();
+
+    println!("Operation succesfully made");
 }
-

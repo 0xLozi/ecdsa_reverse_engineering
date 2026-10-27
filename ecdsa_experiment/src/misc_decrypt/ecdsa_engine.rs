@@ -21,6 +21,17 @@ impl Point {
     pub fn is_infinity(&self) -> bool {
         self.x.is_zero() && self.y.is_zero()
     }
+
+    pub fn print_point(&self) {
+        print!("X: ");
+        for bytes in self.x.to_bytes_be() {
+            println!("{:02X}", bytes);
+        }
+        print!("Y: ");
+        for bytes in self.y.to_bytes_be() {
+            println!("{:02X}", bytes);
+        }
+    }
 }
 
 pub struct PSP_CTX {
