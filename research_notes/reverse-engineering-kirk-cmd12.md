@@ -756,6 +756,22 @@ So I have to change it and put them just as in C are hardcoded
 
 ## Still can't get the same results...
 
+---
+# Explanation
+### Why `BigUint` Math Fails against Montgomery Implementation from C...
+
+Elliptic Curve in C doesn't operate in the same way as standard arithmetic. This is because that, In order to optimize arithmetic and avoid slow performance while performing the multiplication, It uses Montgomery reduction.
+In other words, this means that all internal coordinates (`X & Y`) lives inside the Montgomery domain, which means that they get stored by a power of a two factor $R \space (\overline{X} = X \cdot R \space (\bmod N))$
+
+My Rust implementation uses standard `BigUInt`, and calcutales values that aren't inside the Montgomery form, which causes that my intermediate coordinates differ from the C ones while performing each bit shift iteration.
+
+**The issue with the loop**
+Inside the C implementation, the `k` scalar and `point_mul` loops were made specifically for Montgomery logic. By just copying C bit shifting structure while havin plain `BigUint` integers inside Rust means that I'm performing a logic that was made for Montgomery numbers but with BigUInt standard ones.
+
+**Decision Design: Change the crate**
+While I was researching for other alternatives to big-int crate and find another one that suits with my needs, I discovered a crate called `crypto_bigint`. Which is an implementation of a big integer library which provides modular arithmetic such as `modular::ConstMontyForm`.
+
+I'm gonna create a examples folder in order to test the crate itself and see how it works in order to in the short future make the transition correctly. 
 
 
 
