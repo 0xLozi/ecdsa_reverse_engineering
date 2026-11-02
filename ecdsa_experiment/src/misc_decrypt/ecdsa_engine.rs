@@ -25,11 +25,12 @@ impl Point {
     pub fn print_point(&self) {
         print!("X: ");
         for bytes in self.x.to_bytes_be() {
-            println!("{:02X}", bytes);
+            print!("{:02X}, ", bytes);
         }
+        print!("\n");
         print!("Y: ");
         for bytes in self.y.to_bytes_be() {
-            println!("{:02X}", bytes);
+            print!("{:02X}, ", bytes);
         }
     }
 }

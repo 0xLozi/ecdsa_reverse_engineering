@@ -67,11 +67,18 @@ int main() {
     ec_priv_to_pub(k, pb);
 
     // we use the format of hexadecimal with 0 for padding and 2 of size for each byte representation
-    printf("Private Key (pb): ");
-    for (int i = 0; i < 0x28; i++) {
+    printf("X: ");
+    for (int i = 0; i < 19; i++) {
         printf("%02X, ", pb[i]);
     }
+    printf("%02X ", pb[19]);
+
     printf("\n\n");
+    printf("Y: ");
+    for (int i = 20; i < 39; i++) {
+        printf("%02X, ", pb[i]);
+    }
+    printf("%02X, ", pb[39]);
 
     return 0;
 }

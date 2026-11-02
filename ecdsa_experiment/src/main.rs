@@ -93,14 +93,19 @@ pub static GY1: [u8; 20] = [
 
 
 fn main() {
-    let k: [u8; 20] = [0x55; 20];
+    let mut k: [u8; 21] = [0x55; 21];
+    k[0] = 0x00;
     let k_bn = BigUint::from_bytes_be(&k);
 
     let psp_ctx = ecdsa_engine::ecdsa_set_curve(&EC_P, &EC_A, &EC_B2, &EC_N2, &GX2, &GY2);
 
-    let result = ec_priv_to_pub(&k_bn, &psp_ctx);
+    let shift_factor = BigUint::from(1u8) << 168u32; 
+    let k_shifted = (k_bn * shift_factor) % &psp_ctx.n;
+
+    let result = ec_priv_to_pub(&k_shifted, &psp_ctx);
 
     result.print_point();
+    print!("\n");
 
     println!("Operation succesfully made");
 }
