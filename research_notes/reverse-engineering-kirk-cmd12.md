@@ -773,6 +773,19 @@ While I was researching for other alternatives to big-int crate and find another
 
 I'm gonna create a examples folder in order to test the crate itself and see how it works in order to in the short future make the transition correctly. 
 
+# I WAS WRONG AGAIN (I THINK)
+THE PROBLEM WASN'T THE CRATE, IT WAS THE ORIGINAL DECRYPTION TOOL ALL THE TIME (I THINK, I DON'T KNOW)
+
+**What I've found:**
+- Inside the **C** code, it runs `bn_to_mon(k, ec_N, 21)` on k (which is the private key scalar)
+- The `bn_to_mon` function loops $8 \times 21$ (which is 168 times), adding the number to itself modulo N during each iteration
+- And this shifts the scalar's actual value to $k \times 2^{168} (mod N)$
+
+**Why I think this is a Bug**
+The scalar `k` is being passed to `point_mul` only for being use as a loop condition in order to control `point_addition` rather than as a coordinate or smt like an operand that was meant for arithmeric related to **Montgomery**.
+From what I've researched: Montgomery Form is intended to be a temporary internal state in order to optimize the modulo math. And this is right because at the end of the function, the values are converted into point from mon.
+Maybe that could be the the issue why the tool generates public keys that are mathematically wrong? or is this a weird Sony implementation for it? I don't know. Just in case I stick with the bit shifting because it makes the results math with the original c implementation lol.
+
 
 
 
