@@ -1,6 +1,9 @@
+use num_bigint::BigUint;
 use num_traits::{FromBytes, Zero};
-use crate::{BigUint, misc_decrypt::mod_operations::{mod_add, mod_inv, mod_mul, mod_sub}};
-use super::mod_operations::{mod_square};
+
+use crate::misc_decrypt::mod_operations::{mod_add, mod_inv, mod_mul, mod_sub};
+use super::mod_operations::mod_square;
+use crate::Error;
 
 pub enum PrintableData<'a> {
     Bytes(&'a [u8]),
@@ -35,7 +38,7 @@ impl Point {
     }
 }
 
-pub struct PSP_CTX {
+pub struct Curve {
     pub p: BigUint,
     pub a: BigUint,
     pub b: BigUint,
@@ -43,26 +46,53 @@ pub struct PSP_CTX {
     pub g: Point,
 }
 
-// Now we have the curves that we're gonna use just here.
-pub fn ecdsa_set_curve(p: &[u8], a: &[u8], b: &[u8], n: &[u8], gx: &[u8], gy: &[u8]) -> PSP_CTX {
-    PSP_CTX { 
-        p: BigUint::from_be_bytes(p), 
-        a: BigUint::from_be_bytes(a), 
-        b: BigUint::from_be_bytes(b), 
-        n: BigUint::from_be_bytes(n), 
-        g: Point { 
-            x: BigUint::from_be_bytes(gx), 
-            y: BigUint::from_be_bytes(gy), 
+
+impl Curve {
+    // This builds a curve context. It replaces the C 'ecdsa_set_curve()' ('ec.c:378')
+    // 
+    // Differences form the C version:
+    // - The parameters are stored in a 'Curve' value rather than the module-level globals 'ec_p' / 'ec_a' / 'ec_b' / 'ec_N' / 'ec_G'
+    // - 'p', 'a', 'b' and the base point are expected in normal domain. 
+    // C converts 'a', 'b' and 'G' to Montgomery form internally; this port does all the arithmetic
+    // in the normal domain. So there's no convertion at all
+    // - The inputs are validated (base point on the curve, non-zero order) and the function returns
+    // 'Result' instead of always returning '0'
+    // 
+    pub fn new(p: &[u8], a: &[u8], b: &[u8], n: &[u8], gx: &[u8], gy: &[u8]) -> Result<Self, Error> {
+        let p = BigUint::from_be_bytes(p);
+        let n = BigUint::from_be_bytes(n);
+        let a = BigUint::from_be_bytes(a);
+        let b = BigUint::from_be_bytes(b);
+        let g = Point {
+            x: BigUint::from_be_bytes(gx),
+            y: BigUint::from_be_bytes(gy),
+        };
+
+        // This is the prime field: It defines the size of the graph and it's limits where a point
+        // can exist physically. So X or Y coordinate can't be larger than p.
+        // Becase 
+        if p.is_zero() || n.is_zero() {
+            return Err(Error::InvalidParameter);
         }
+
+        // Validate the generator point (ec_G). In the double-and-add loop, this is the 
+        // point we add when a bit is 1. If it's Infinity (zero), the cryptography breaks 
+        // because all public keys will evaluate to Infinity regardless of the private key.
+        if g.is_infinity() {
+            return Err(Error::InfinityBasePoint);
+        }
+
+        Ok(Curve { p, a, b, n, g })
     }
 }
 
+
 // ecdsa_engine::ec_priv_to_pub(k, &mut keypair.public_key, &psp_ctx);
-pub fn ec_priv_to_pub(k: &BigUint, psp_ctx: &PSP_CTX) -> Point {
+pub fn ec_priv_to_pub(k: &BigUint, psp_ctx: &Curve) -> Point {
     point_mul(k, &psp_ctx.g, &psp_ctx)
 }
 
-pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
+pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &Curve) -> Point {
 
     let mut d = Point::infinity();
 
@@ -85,7 +115,7 @@ pub fn point_mul(a: &BigUint, b: &Point, psp_ctx: &PSP_CTX) -> Point {
 // p = number A
 // q = number B
 // ctx = well, the context lmao
-pub fn point_add(r: &mut Point, p_to_add: &Point, q: &Point, psp_ctx: &PSP_CTX) { 
+pub fn point_add(r: &mut Point, p_to_add: &Point, q: &Point, psp_ctx: &Curve) { 
 
     if p_to_add.is_infinity() {
         *r = q.clone();
@@ -129,7 +159,7 @@ pub fn point_add(r: &mut Point, p_to_add: &Point, q: &Point, psp_ctx: &PSP_CTX) 
 // - Problem: Needed to avoid mutating input while updating result `r` without any sort of heap allocations.
 // - First consideration: Cloning `BigUInt` (Safe, but caused unnecessary heap allocations and this functions will be called hundreds of times...).
 // - Final Choice: Used immutable read references to `r` BEFORE mutating, achieving zero allocations!!!!
-pub fn point_double_in_place(r: &mut Point, ctx: &PSP_CTX) {
+pub fn point_double_in_place(r: &mut Point, ctx: &Curve) {
 
     let pp = r.clone();
     let px = &pp.x;
@@ -174,7 +204,7 @@ pub fn point_double_in_place(r: &mut Point, ctx: &PSP_CTX) {
 }
 
 // this is when r and p are different pointers. I do this because in Rust I cannot perform in-place doubling
-pub fn point_double_out_place(r: &mut Point, p: &Point, ctx: &PSP_CTX) {
+pub fn point_double_out_place(r: &mut Point, p: &Point, ctx: &Curve) {
     let pp = p.clone();
     let px = &pp.x;
     let py = &pp.y;

@@ -1,14 +1,5 @@
-mod kirk_headers;
-use std::result;
-
-use num_traits::{FromBytes, ToBytes, Zero};
 use num_bigint::BigUint;
-use kirk_headers::Kirk_CMD12_BUFFER;
-mod misc_decrypt;
-use misc_decrypt::ecdsa_engine;
-use crate::misc_decrypt::{ecdsa_engine::{PSP_CTX, ec_priv_to_pub, ecdsa_set_curve}, mod_operations::mod_add};
-use ecdsa_engine::point_double_out_place;
-use misc_decrypt::mod_operations::{mod_square};
+use kirk_ec::misc_decrypt::ecdsa_engine::{self, ec_priv_to_pub};
 
 #[derive(Clone)]
 pub struct Point {
@@ -90,7 +81,6 @@ pub static GY1: [u8; 20] = [
     0x90, 0x8D, 0xE9, 0x0F, 0x27, 0xD7, 0x5C, 0x82,
     0xBE, 0xC1, 0x08, 0xC0,
 ];
-
 
 fn main() {
     let mut k: [u8; 21] = [0x55; 21];

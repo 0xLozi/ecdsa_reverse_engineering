@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ecdsa_experiment"
+name = "kirk-ec"
 version = "0.1.0"
 dependencies = [
  "crypto-bigint",
